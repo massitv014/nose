@@ -138,21 +138,23 @@
         };
 
         // Initialize stars (distributed across space)
+        const initialRocketY = canvas.height - 100;
         for (let i = 0; i < 1000; i++) {
             gameState.stars.push({
                 x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height * 8 - canvas.height * 7, // Stars far above in space
+                // Stars distributed from 500 to 5000 units above starting position
+                y: initialRocketY - 500 - Math.random() * 4500,
                 size: Math.random() * 2.5 + 0.5,
                 opacity: Math.random() * 0.8 + 0.2,
                 twinkle: Math.random() * Math.PI * 2 // For twinkling effect
             });
         }
 
-        // Initialize planets (positioned in deep space)
+        // Initialize planets (positioned in deep space relative to starting position)
         gameState.planets.push({
             name: 'Moon',
             x: canvas.width * 0.2,
-            y: -canvas.height * 2,
+            y: initialRocketY - 800,  // 800 units above start
             size: 60,
             color: '#d4d4d4',
             craters: true
@@ -161,7 +163,7 @@
         gameState.planets.push({
             name: 'Mars',
             x: canvas.width * 0.7,
-            y: -canvas.height * 3.5,
+            y: initialRocketY - 1500,  // 1500 units above start
             size: 80,
             color: '#cd5c5c',
             hasAtmosphere: true,
@@ -171,7 +173,7 @@
         gameState.planets.push({
             name: 'Jupiter',
             x: canvas.width * 0.4,
-            y: -canvas.height * 5,
+            y: initialRocketY - 2200,  // 2200 units above start
             size: 120,
             color: '#daa520',
             stripes: true
@@ -180,7 +182,7 @@
         gameState.planets.push({
             name: 'Saturn',
             x: canvas.width * 0.8,
-            y: -canvas.height * 6.5,
+            y: initialRocketY - 3000,  // 3000 units above start
             size: 100,
             color: '#f4a460',
             hasRings: true
@@ -189,7 +191,7 @@
         gameState.planets.push({
             name: 'Neptune',
             x: canvas.width * 0.15,
-            y: -canvas.height * 7.5,
+            y: initialRocketY - 3800,  // 3800 units above start
             size: 90,
             color: '#4169e1',
             hasAtmosphere: true,
@@ -369,14 +371,17 @@
                 }
             });
 
-            // Draw planets (visible in deep space)
-            if (spaceProgress > 0.5) {
+            // Draw planets (visible when in space)
+            if (realAltitude > 300) {  // Show planets when 300 units above ground
                 gameState.planets.forEach(planet => {
                     const planetScreenY = planet.y - gameState.cameraOffset;
 
                     // Only draw if planet is visible on screen
                     if (planetScreenY > -planet.size - 50 && planetScreenY < canvas.height + planet.size + 50) {
+                        // Fade in planets based on altitude
+                        const planetOpacity = Math.min((realAltitude - 300) / 200, 1);
                         ctx.save();
+                        ctx.globalAlpha = planetOpacity;
 
                         // Draw atmosphere if planet has one
                         if (planet.hasAtmosphere) {
