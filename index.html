@@ -88,6 +88,7 @@
             <div class="fuel-fill" id="fuelBar"></div>
         </div>
         <div style="margin-top: 10px;">Stato: <span id="status">Pronto al decollo</span></div>
+        <div id="nearPlanet" style="margin-top: 10px; color: #ffaa00; font-weight: bold;"></div>
     </div>
 
     <div id="controls">
@@ -609,6 +610,28 @@
                 }
             }
             document.getElementById('status').textContent = status;
+
+            // Check if near any planet
+            let nearPlanetText = '';
+            if (realAltitude > 300) {
+                let closestPlanet = null;
+                let closestDistance = Infinity;
+
+                gameState.planets.forEach(planet => {
+                    const distance = Math.abs(gameState.rocket.y - planet.y);
+                    if (distance < closestDistance && distance < 300) {
+                        closestDistance = distance;
+                        closestPlanet = planet;
+                    }
+                });
+
+                if (closestPlanet) {
+                    nearPlanetText = `🪐 Vicino a ${closestPlanet.name}!`;
+                } else if (realAltitude > 500) {
+                    nearPlanetText = '🌌 Nello spazio profondo';
+                }
+            }
+            document.getElementById('nearPlanet').textContent = nearPlanetText;
         }
 
         function resetGame() {
