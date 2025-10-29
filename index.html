@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rocket Space Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(to bottom, #000428 0%, #004e92 50%, #87ceeb 100%);
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 16px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+            text-align: right;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 48px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+            display: none;
+            text-align: center;
+            z-index: 20;
+        }
+
+        #gameOver .subtitle {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+
+        .fuel-bar {
+            width: 200px;
+            height: 20px;
+            border: 2px solid white;
+            border-radius: 10px;
+            margin-top: 10px;
+            background: rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        .fuel-fill {
+            height: 100%;
+            background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui">
+        <div>Velocità: <span id="speed">0</span> km/h</div>
+        <div>Altitudine: <span id="altitude">0</span> m</div>
+        <div>Carburante:</div>
+        <div class="fuel-bar">
+            <div class="fuel-fill" id="fuelBar"></div>
+        </div>
+        <div style="margin-top: 10px;">Stato: <span id="status">Pronto al decollo</span></div>
+    </div>
+
+    <div id="controls">
+        <div>CONTROLLI:</div>
+        <div>BARRA SPAZIATRICE - Accelera (+20%)</div>
+        <div>R - Ricomincia</div>
+    </div>
+
+    <div id="gameOver">
+        <div id="crashMessage">SCHIANTO!</div>
+        <div class="subtitle">Premi R per ricominciare</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Game state
+        let gameState = {
+            rocket: {
+                x: canvas.width / 2,
+                y: canvas.height - 100,
+                width: 40,
+                height: 80,
+                velocity: 0,
+                maxVelocity: 2000,
+                acceleration: 0,
+                angle: 0
+            },
+            fuel: 100,
+            maxFuel: 100,
+            fuelConsumption: 2,
+            isLaunched: false,
+            isCrashed: false,
+            gravity: 0.5,
+            spaceStart: canvas.height * 0.3,
+            groundLevel: canvas.height - 50,
+            stars: [],
+            particles: [],
+            buildings: []
+        };
+
+        // Initialize stars
+        for (let i = 0; i < 200; i++) {
+            gameState.stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height * 0.5,
+                size: Math.random() * 2,
+                opacity: Math.random()
+            });
+        }
+
+        // Initialize buildings (city)
+        for (let i = 0; i < 15; i++) {
+            gameState.buildings.push({
+                x: i * (canvas.width / 15),
+                width: canvas.width / 15 - 10,
+                height: 50 + Math.random() * 100,
+                color: `rgb(${100 + Math.random() * 100}, ${100 + Math.random() * 100}, ${100 + Math.random() * 100})`
+            });
+        }
+
+        // Input handling
+        let keys = {};
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!gameState.isCrashed && gameState.fuel > 0) {
+                    // Start launch or boost
+                    gameState.isLaunched = true;
+                    // Increase velocity by 20%
+                    gameState.rocket.velocity -= gameState.rocket.velocity * 0.2 + 50;
+                    // Consume fuel
+                    gameState.fuel = Math.max(0, gameState.fuel - gameState.fuelConsumption);
+
+                    // Add boost particles
+                    createBoostParticles();
+                }
+            }
+
+            if (e.code === 'KeyR') {
+                resetGame();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        function createBoostParticles() {
+            for (let i = 0; i < 10; i++) {
+                gameState.particles.push({
+                    x: gameState.rocket.x + (Math.random() - 0.5) * 20,
+                    y: gameState.rocket.y + gameState.rocket.height / 2,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: Math.random() * 8 + 2,
+                    size: Math.random() * 5 + 2,
+                    life: 1,
+                    color: Math.random() > 0.5 ? '#ff6600' : '#ffaa00'
+                });
+            }
+        }
+
+        function createCrashParticles() {
+            for (let i = 0; i < 50; i++) {
+                gameState.particles.push({
+                    x: gameState.rocket.x,
+                    y: gameState.rocket.y,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15,
+                    size: Math.random() * 8 + 2,
+                    life: 1,
+                    color: ['#ff0000', '#ff6600', '#ffaa00', '#888888'][Math.floor(Math.random() * 4)]
+                });
+            }
+        }
+
+        function update() {
+            if (gameState.isCrashed) return;
+
+            // Apply gravity
+            if (gameState.isLaunched) {
+                if (gameState.fuel > 0) {
+                    // In flight with fuel
+                    gameState.rocket.velocity += gameState.gravity;
+                } else {
+                    // Out of fuel - falling
+                    gameState.rocket.velocity += gameState.gravity * 1.5;
+                }
+            }
+
+            // Update rocket position
+            gameState.rocket.y += gameState.rocket.velocity;
+
+            // Clamp velocity
+            gameState.rocket.velocity = Math.min(gameState.rocket.velocity, gameState.rocket.maxVelocity);
+
+            // Check if crashed
+            if (gameState.rocket.y >= gameState.groundLevel - gameState.rocket.height) {
+                gameState.rocket.y = gameState.groundLevel - gameState.rocket.height;
+                if (gameState.isLaunched) {
+                    gameState.isCrashed = true;
+                    document.getElementById('gameOver').style.display = 'block';
+                    createCrashParticles();
+                }
+            }
+
+            // Prevent going above screen
+            if (gameState.rocket.y < 0) {
+                gameState.rocket.y = 0;
+            }
+
+            // Update particles
+            gameState.particles = gameState.particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                return p.life > 0;
+            });
+
+            // Slight rocket tilt based on velocity
+            if (gameState.fuel > 0 && gameState.isLaunched) {
+                gameState.rocket.angle = Math.sin(Date.now() / 100) * 0.1;
+            } else if (gameState.fuel === 0 && gameState.isLaunched) {
+                gameState.rocket.angle = Math.sin(Date.now() / 50) * 0.3;
+            }
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw gradient background
+            const altitude = canvas.height - gameState.rocket.y;
+            const spaceProgress = Math.min(altitude / (canvas.height * 0.7), 1);
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, `rgba(0, 4, 40, ${spaceProgress})`);
+            gradient.addColorStop(0.5, `rgba(0, 78, 146, ${1 - spaceProgress * 0.5})`);
+            gradient.addColorStop(1, '#87ceeb');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw stars
+            gameState.stars.forEach(star => {
+                if (gameState.rocket.y < gameState.spaceStart) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Draw ground
+            ctx.fillStyle = '#2d5016';
+            ctx.fillRect(0, gameState.groundLevel, canvas.width, canvas.height - gameState.groundLevel);
+
+            // Draw road
+            ctx.fillStyle = '#444444';
+            ctx.fillRect(0, gameState.groundLevel, canvas.width, 30);
+
+            // Road lines
+            ctx.strokeStyle = '#ffff00';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([20, 15]);
+            ctx.beginPath();
+            ctx.moveTo(0, gameState.groundLevel + 15);
+            ctx.lineTo(canvas.width, gameState.groundLevel + 15);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw buildings
+            gameState.buildings.forEach(building => {
+                ctx.fillStyle = building.color;
+                ctx.fillRect(
+                    building.x,
+                    gameState.groundLevel - building.height,
+                    building.width,
+                    building.height
+                );
+
+                // Windows
+                ctx.fillStyle = gameState.rocket.y < canvas.height - 200 ? '#ffff00' : '#ffaa00';
+                for (let i = 0; i < building.height / 20; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        ctx.fillRect(
+                            building.x + 5 + j * 15,
+                            gameState.groundLevel - building.height + 5 + i * 20,
+                            10,
+                            10
+                        );
+                    }
+                }
+            });
+
+            // Draw particles
+            gameState.particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // Draw rocket
+            ctx.save();
+            ctx.translate(gameState.rocket.x, gameState.rocket.y + gameState.rocket.height / 2);
+            ctx.rotate(gameState.rocket.angle);
+            ctx.translate(0, -gameState.rocket.height / 2);
+
+            // Rocket body
+            ctx.fillStyle = '#cccccc';
+            ctx.fillRect(-gameState.rocket.width / 2, 0, gameState.rocket.width, gameState.rocket.height * 0.7);
+
+            // Rocket nose
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.moveTo(-gameState.rocket.width / 2, 0);
+            ctx.lineTo(gameState.rocket.width / 2, 0);
+            ctx.lineTo(0, -gameState.rocket.height * 0.3);
+            ctx.closePath();
+            ctx.fill();
+
+            // Rocket fins
+            ctx.fillStyle = '#ff6600';
+            ctx.beginPath();
+            ctx.moveTo(-gameState.rocket.width / 2, gameState.rocket.height * 0.7);
+            ctx.lineTo(-gameState.rocket.width / 2 - 15, gameState.rocket.height * 0.7 + 20);
+            ctx.lineTo(-gameState.rocket.width / 2, gameState.rocket.height * 0.7 + 20);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(gameState.rocket.width / 2, gameState.rocket.height * 0.7);
+            ctx.lineTo(gameState.rocket.width / 2 + 15, gameState.rocket.height * 0.7 + 20);
+            ctx.lineTo(gameState.rocket.width / 2, gameState.rocket.height * 0.7 + 20);
+            ctx.closePath();
+            ctx.fill();
+
+            // Rocket window
+            ctx.fillStyle = '#00aaff';
+            ctx.beginPath();
+            ctx.arc(0, gameState.rocket.height * 0.25, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Engine fire when boosting
+            if (gameState.isLaunched && gameState.fuel > 0) {
+                const flameHeight = 20 + Math.random() * 10;
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.moveTo(-10, gameState.rocket.height * 0.7 + 20);
+                ctx.lineTo(10, gameState.rocket.height * 0.7 + 20);
+                ctx.lineTo(5, gameState.rocket.height * 0.7 + 20 + flameHeight);
+                ctx.lineTo(-5, gameState.rocket.height * 0.7 + 20 + flameHeight);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.moveTo(-5, gameState.rocket.height * 0.7 + 20);
+                ctx.lineTo(5, gameState.rocket.height * 0.7 + 20);
+                ctx.lineTo(2, gameState.rocket.height * 0.7 + 20 + flameHeight * 0.6);
+                ctx.lineTo(-2, gameState.rocket.height * 0.7 + 20 + flameHeight * 0.6);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.restore();
+
+            // Update UI
+            const speed = Math.abs(Math.round(gameState.rocket.velocity * 10));
+            const altitude = Math.max(0, Math.round(canvas.height - gameState.rocket.y - 100));
+            document.getElementById('speed').textContent = speed;
+            document.getElementById('altitude').textContent = altitude;
+            document.getElementById('fuelBar').style.width = gameState.fuel + '%';
+
+            let status = 'Pronto al decollo';
+            if (gameState.isCrashed) {
+                status = 'SCHIANTATO!';
+            } else if (gameState.isLaunched) {
+                if (gameState.fuel > 0) {
+                    status = 'In volo';
+                } else {
+                    status = 'CARBURANTE ESAURITO - CADUTA!';
+                }
+            }
+            document.getElementById('status').textContent = status;
+        }
+
+        function resetGame() {
+            gameState.rocket.x = canvas.width / 2;
+            gameState.rocket.y = canvas.height - 100;
+            gameState.rocket.velocity = 0;
+            gameState.rocket.angle = 0;
+            gameState.fuel = 100;
+            gameState.isLaunched = false;
+            gameState.isCrashed = false;
+            gameState.particles = [];
+            document.getElementById('gameOver').style.display = 'none';
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gameState.groundLevel = canvas.height - 50;
+            if (!gameState.isLaunched) {
+                gameState.rocket.y = canvas.height - 100;
+            }
+        });
+
+        // Start game loop
+        gameLoop();
+    </script>
+</body>
+</html>
