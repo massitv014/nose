@@ -132,19 +132,69 @@
             initialGroundLevel: canvas.height - 50,
             cameraOffset: (canvas.height - 100) - (canvas.height * 0.6), // Initial camera position
             stars: [],
+            planets: [],
             particles: [],
             buildings: []
         };
 
         // Initialize stars (distributed across space)
-        for (let i = 0; i < 500; i++) {
+        for (let i = 0; i < 1000; i++) {
             gameState.stars.push({
                 x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height * 5 - canvas.height * 4, // Stars above starting position
+                y: Math.random() * canvas.height * 8 - canvas.height * 7, // Stars far above in space
                 size: Math.random() * 2.5 + 0.5,
-                opacity: Math.random() * 0.8 + 0.2
+                opacity: Math.random() * 0.8 + 0.2,
+                twinkle: Math.random() * Math.PI * 2 // For twinkling effect
             });
         }
+
+        // Initialize planets (positioned in deep space)
+        gameState.planets.push({
+            name: 'Moon',
+            x: canvas.width * 0.2,
+            y: -canvas.height * 2,
+            size: 60,
+            color: '#d4d4d4',
+            craters: true
+        });
+
+        gameState.planets.push({
+            name: 'Mars',
+            x: canvas.width * 0.7,
+            y: -canvas.height * 3.5,
+            size: 80,
+            color: '#cd5c5c',
+            hasAtmosphere: true,
+            atmosphereColor: 'rgba(205, 92, 92, 0.3)'
+        });
+
+        gameState.planets.push({
+            name: 'Jupiter',
+            x: canvas.width * 0.4,
+            y: -canvas.height * 5,
+            size: 120,
+            color: '#daa520',
+            stripes: true
+        });
+
+        gameState.planets.push({
+            name: 'Saturn',
+            x: canvas.width * 0.8,
+            y: -canvas.height * 6.5,
+            size: 100,
+            color: '#f4a460',
+            hasRings: true
+        });
+
+        gameState.planets.push({
+            name: 'Neptune',
+            x: canvas.width * 0.15,
+            y: -canvas.height * 7.5,
+            size: 90,
+            color: '#4169e1',
+            hasAtmosphere: true,
+            atmosphereColor: 'rgba(65, 105, 225, 0.4)'
+        });
 
         // Initialize buildings (city)
         for (let i = 0; i < 15; i++) {
@@ -305,18 +355,107 @@
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw stars (more visible in space)
+            // Draw stars (more visible in space with twinkling effect)
             gameState.stars.forEach(star => {
                 // Convert world coordinates to screen coordinates
                 const starScreenY = star.y - gameState.cameraOffset;
                 if (starScreenY > -10 && starScreenY < canvas.height + 10) {
-                    const starOpacity = Math.min(star.opacity * spaceProgress * 2, 1);
+                    const twinkle = Math.sin(Date.now() / 1000 + star.twinkle) * 0.3 + 0.7;
+                    const starOpacity = Math.min(star.opacity * spaceProgress * 2 * twinkle, 1);
                     ctx.fillStyle = `rgba(255, 255, 255, ${starOpacity})`;
                     ctx.beginPath();
                     ctx.arc(star.x, starScreenY, star.size, 0, Math.PI * 2);
                     ctx.fill();
                 }
             });
+
+            // Draw planets (visible in deep space)
+            if (spaceProgress > 0.5) {
+                gameState.planets.forEach(planet => {
+                    const planetScreenY = planet.y - gameState.cameraOffset;
+
+                    // Only draw if planet is visible on screen
+                    if (planetScreenY > -planet.size - 50 && planetScreenY < canvas.height + planet.size + 50) {
+                        ctx.save();
+
+                        // Draw atmosphere if planet has one
+                        if (planet.hasAtmosphere) {
+                            ctx.fillStyle = planet.atmosphereColor;
+                            ctx.beginPath();
+                            ctx.arc(planet.x, planetScreenY, planet.size + 15, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+
+                        // Draw planet body
+                        ctx.fillStyle = planet.color;
+                        ctx.beginPath();
+                        ctx.arc(planet.x, planetScreenY, planet.size, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Add planet-specific features
+                        if (planet.craters) {
+                            // Moon craters
+                            ctx.fillStyle = 'rgba(100, 100, 100, 0.4)';
+                            for (let i = 0; i < 5; i++) {
+                                const angle = (i / 5) * Math.PI * 2;
+                                const distance = planet.size * 0.4;
+                                const craterX = planet.x + Math.cos(angle) * distance;
+                                const craterY = planetScreenY + Math.sin(angle) * distance;
+                                ctx.beginPath();
+                                ctx.arc(craterX, craterY, planet.size * 0.15, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+
+                        if (planet.stripes) {
+                            // Jupiter stripes
+                            ctx.strokeStyle = 'rgba(139, 69, 19, 0.6)';
+                            ctx.lineWidth = 6;
+                            for (let i = -2; i <= 2; i++) {
+                                ctx.beginPath();
+                                const y = planetScreenY + i * (planet.size * 0.3);
+                                ctx.moveTo(planet.x - planet.size * 0.9, y);
+                                ctx.lineTo(planet.x + planet.size * 0.9, y);
+                                ctx.stroke();
+                            }
+                        }
+
+                        if (planet.hasRings) {
+                            // Saturn rings
+                            ctx.strokeStyle = 'rgba(210, 180, 140, 0.8)';
+                            ctx.lineWidth = 15;
+                            ctx.beginPath();
+                            ctx.ellipse(planet.x, planetScreenY, planet.size * 1.6, planet.size * 0.3, 0, 0, Math.PI * 2);
+                            ctx.stroke();
+
+                            ctx.strokeStyle = 'rgba(160, 130, 90, 0.6)';
+                            ctx.lineWidth = 8;
+                            ctx.beginPath();
+                            ctx.ellipse(planet.x, planetScreenY, planet.size * 1.4, planet.size * 0.25, 0, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+
+                        // Add subtle shading to make planet look spherical
+                        const gradient = ctx.createRadialGradient(
+                            planet.x - planet.size * 0.3,
+                            planetScreenY - planet.size * 0.3,
+                            planet.size * 0.1,
+                            planet.x,
+                            planetScreenY,
+                            planet.size
+                        );
+                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+                        gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+                        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(planet.x, planetScreenY, planet.size, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.restore();
+                    }
+                });
+            }
 
             // Calculate ground position in screen coordinates
             const screenGroundLevel = gameState.initialGroundLevel - gameState.cameraOffset;
