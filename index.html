@@ -118,7 +118,7 @@
                 width: 40,
                 height: 80,
                 velocity: 0,
-                maxVelocity: 2000,
+                maxVelocity: 800,  // Reduced from 2000 for slower, more controlled flight
                 acceleration: 0,
                 angle: 0
             },
@@ -127,7 +127,7 @@
             fuelConsumption: 2,
             isLaunched: false,
             isCrashed: false,
-            gravity: 0.5,
+            gravity: 0.2,  // Reduced from 0.5 for gentler physics
             spaceStart: canvas.height * 0.3,
             groundLevel: canvas.height - 50,
             initialGroundLevel: canvas.height - 50,
@@ -274,8 +274,8 @@
                 if (!gameState.isCrashed && gameState.fuel > 0) {
                     // Start launch or boost
                     gameState.isLaunched = true;
-                    // Increase velocity by 20%
-                    gameState.rocket.velocity -= gameState.rocket.velocity * 0.2 + 50;
+                    // Increase velocity by 20% with smaller base boost for smoother flight
+                    gameState.rocket.velocity -= gameState.rocket.velocity * 0.2 + 15;
                     // Consume fuel
                     gameState.fuel = Math.max(0, gameState.fuel - gameState.fuelConsumption);
 
@@ -330,8 +330,8 @@
                     // In flight with fuel
                     gameState.rocket.velocity += gameState.gravity;
                 } else {
-                    // Out of fuel - falling
-                    gameState.rocket.velocity += gameState.gravity * 1.5;
+                    // Out of fuel - falling (slower fall for better visibility)
+                    gameState.rocket.velocity += gameState.gravity * 1.2;
                 }
             }
 
