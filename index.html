@@ -134,70 +134,124 @@
             cameraOffset: (canvas.height - 100) - (canvas.height * 0.6), // Initial camera position
             stars: [],
             planets: [],
+            asteroids: [],
+            galaxies: [],
             particles: [],
             buildings: []
         };
 
-        // Initialize stars (distributed across space)
+        // Initialize stars (distributed across ALL of space - up to 200k altitude)
         const initialRocketY = canvas.height - 100;
-        for (let i = 0; i < 1000; i++) {
+        for (let i = 0; i < 2000; i++) {
             gameState.stars.push({
                 x: Math.random() * canvas.width,
-                // Stars distributed from 500 to 5000 units above starting position
-                y: initialRocketY - 500 - Math.random() * 4500,
+                // Stars distributed from 500 to 200000 units above starting position
+                y: initialRocketY - 500 - Math.random() * 199500,
                 size: Math.random() * 2.5 + 0.5,
                 opacity: Math.random() * 0.8 + 0.2,
                 twinkle: Math.random() * Math.PI * 2 // For twinkling effect
             });
         }
 
-        // Initialize planets (positioned in deep space relative to starting position)
+        // Initialize planets (distributed throughout the journey to 200k)
+        // Sistema solare - vicino alla Terra
         gameState.planets.push({
-            name: 'Moon',
+            name: 'ISS',
+            x: canvas.width * 0.3,
+            y: initialRocketY - 400,
+            size: 30,
+            color: '#cccccc',
+            isStation: true
+        });
+
+        gameState.planets.push({
+            name: 'Luna',
             x: canvas.width * 0.2,
-            y: initialRocketY - 800,  // 800 units above start
-            size: 60,
+            y: initialRocketY - 1500,
+            size: 70,
             color: '#d4d4d4',
             craters: true
         });
 
         gameState.planets.push({
-            name: 'Mars',
+            name: 'Marte',
             x: canvas.width * 0.7,
-            y: initialRocketY - 1500,  // 1500 units above start
-            size: 80,
+            y: initialRocketY - 8000,
+            size: 85,
             color: '#cd5c5c',
             hasAtmosphere: true,
             atmosphereColor: 'rgba(205, 92, 92, 0.3)'
         });
 
         gameState.planets.push({
-            name: 'Jupiter',
+            name: 'Giove',
             x: canvas.width * 0.4,
-            y: initialRocketY - 2200,  // 2200 units above start
-            size: 120,
+            y: initialRocketY - 25000,
+            size: 140,
             color: '#daa520',
             stripes: true
         });
 
         gameState.planets.push({
-            name: 'Saturn',
+            name: 'Saturno',
             x: canvas.width * 0.8,
-            y: initialRocketY - 3000,  // 3000 units above start
-            size: 100,
+            y: initialRocketY - 50000,
+            size: 120,
             color: '#f4a460',
             hasRings: true
         });
 
         gameState.planets.push({
-            name: 'Neptune',
-            x: canvas.width * 0.15,
-            y: initialRocketY - 3800,  // 3800 units above start
+            name: 'Urano',
+            x: canvas.width * 0.25,
+            y: initialRocketY - 85000,
+            size: 95,
+            color: '#4fd0e7',
+            hasAtmosphere: true,
+            atmosphereColor: 'rgba(79, 208, 231, 0.3)'
+        });
+
+        gameState.planets.push({
+            name: 'Nettuno',
+            x: canvas.width * 0.6,
+            y: initialRocketY - 120000,
             size: 90,
             color: '#4169e1',
             hasAtmosphere: true,
             atmosphereColor: 'rgba(65, 105, 225, 0.4)'
         });
+
+        gameState.planets.push({
+            name: 'Plutone',
+            x: canvas.width * 0.45,
+            y: initialRocketY - 160000,
+            size: 50,
+            color: '#b08968',
+            craters: true
+        });
+
+        // Campi di asteroidi
+        for (let i = 0; i < 50; i++) {
+            gameState.asteroids.push({
+                x: Math.random() * canvas.width,
+                y: initialRocketY - 3000 - Math.random() * 15000, // Between 3k-18k
+                size: Math.random() * 8 + 3,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.02,
+                color: '#8b7355'
+            });
+        }
+
+        // Galassie lontane
+        for (let i = 0; i < 8; i++) {
+            gameState.galaxies.push({
+                x: Math.random() * canvas.width,
+                y: initialRocketY - 100000 - Math.random() * 90000, // Deep space 100k-190k
+                size: 80 + Math.random() * 60,
+                rotation: Math.random() * Math.PI * 2,
+                color: ['#ff00ff', '#00ffff', '#ffff00', '#ff6600'][Math.floor(Math.random() * 4)]
+            });
+        }
 
         // Initialize buildings (city)
         for (let i = 0; i < 15; i++) {
@@ -458,6 +512,96 @@
                         ctx.arc(planet.x, planetScreenY, planet.size, 0, Math.PI * 2);
                         ctx.fill();
 
+                        ctx.restore();
+                    }
+                });
+
+                // Draw ISS (space station) differently
+                gameState.planets.filter(p => p.isStation).forEach(station => {
+                    const stationScreenY = station.y - gameState.cameraOffset;
+                    if (stationScreenY > -50 && stationScreenY < canvas.height + 50) {
+                        ctx.save();
+                        ctx.globalAlpha = Math.min((realAltitude - 300) / 200, 1);
+                        ctx.fillStyle = station.color;
+                        ctx.fillRect(station.x - 15, stationScreenY - 5, 30, 10);
+                        ctx.fillRect(station.x - 5, stationScreenY - 15, 10, 30);
+                        ctx.fillStyle = '#ffaa00';
+                        ctx.fillRect(station.x - 20, stationScreenY - 3, 8, 6);
+                        ctx.fillRect(station.x + 12, stationScreenY - 3, 8, 6);
+                        ctx.restore();
+                    }
+                });
+            }
+
+            // Draw asteroids (in mid-space)
+            if (realAltitude > 2000) {
+                gameState.asteroids.forEach(asteroid => {
+                    const asteroidScreenY = asteroid.y - gameState.cameraOffset;
+                    if (asteroidScreenY > -20 && asteroidScreenY < canvas.height + 20) {
+                        ctx.save();
+                        ctx.translate(asteroid.x, asteroidScreenY);
+                        ctx.rotate(asteroid.rotation);
+                        asteroid.rotation += asteroid.rotationSpeed;
+
+                        ctx.fillStyle = asteroid.color;
+                        ctx.beginPath();
+                        // Draw irregular asteroid shape
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i / 6) * Math.PI * 2;
+                            const radius = asteroid.size * (0.7 + Math.random() * 0.3);
+                            const x = Math.cos(angle) * radius;
+                            const y = Math.sin(angle) * radius;
+                            if (i === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+
+                        // Add some texture
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                        ctx.beginPath();
+                        ctx.arc(asteroid.size * 0.3, 0, asteroid.size * 0.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                });
+            }
+
+            // Draw distant galaxies (in deep space beyond 80k)
+            if (realAltitude > 80000) {
+                gameState.galaxies.forEach(galaxy => {
+                    const galaxyScreenY = galaxy.y - gameState.cameraOffset;
+                    if (galaxyScreenY > -200 && galaxyScreenY < canvas.height + 200) {
+                        ctx.save();
+                        ctx.globalAlpha = 0.4;
+                        ctx.translate(galaxy.x, galaxyScreenY);
+                        ctx.rotate(galaxy.rotation);
+
+                        // Draw spiral galaxy
+                        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, galaxy.size);
+                        grad.addColorStop(0, galaxy.color);
+                        grad.addColorStop(0.5, galaxy.color.replace(')', ', 0.5)').replace('rgb', 'rgba'));
+                        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, galaxy.size, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Draw spiral arms
+                        ctx.strokeStyle = galaxy.color;
+                        ctx.lineWidth = 3;
+                        ctx.globalAlpha = 0.6;
+                        for (let i = 0; i < 3; i++) {
+                            ctx.beginPath();
+                            for (let a = 0; a < Math.PI * 4; a += 0.1) {
+                                const r = (a / (Math.PI * 4)) * galaxy.size * 0.8;
+                                const x = Math.cos(a + i * Math.PI * 2 / 3) * r;
+                                const y = Math.sin(a + i * Math.PI * 2 / 3) * r;
+                                if (a === 0) ctx.moveTo(x, y);
+                                else ctx.lineTo(x, y);
+                            }
+                            ctx.stroke();
+                        }
                         ctx.restore();
                     }
                 });
