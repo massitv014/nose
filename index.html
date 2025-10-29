@@ -130,7 +130,7 @@
             spaceStart: canvas.height * 0.3,
             groundLevel: canvas.height - 50,
             initialGroundLevel: canvas.height - 50,
-            cameraOffset: 0,
+            cameraOffset: (canvas.height - 100) - (canvas.height * 0.6), // Initial camera position
             stars: [],
             particles: [],
             buildings: []
@@ -228,27 +228,15 @@
                 }
             }
 
-            // Update rocket position
+            // Update rocket position (in world coordinates)
             gameState.rocket.y += gameState.rocket.velocity;
 
             // Clamp velocity
             gameState.rocket.velocity = Math.min(gameState.rocket.velocity, gameState.rocket.maxVelocity);
 
-            // Calculate camera offset to keep rocket near center when flying
-            if (gameState.isLaunched) {
-                const targetY = canvas.height * 0.6; // Keep rocket at 60% from top
-                gameState.cameraOffset = gameState.rocket.y - targetY;
-
-                // Don't let camera go below initial ground level
-                if (gameState.cameraOffset < 0) {
-                    gameState.cameraOffset = 0;
-                }
-            }
-
-            // Check if crashed
-            const absoluteGroundLevel = gameState.initialGroundLevel + gameState.cameraOffset;
-            if (gameState.rocket.y >= absoluteGroundLevel - gameState.rocket.height) {
-                gameState.rocket.y = absoluteGroundLevel - gameState.rocket.height;
+            // Check if crashed (in world coordinates - ground is always at initialGroundLevel)
+            if (gameState.rocket.y >= gameState.initialGroundLevel - gameState.rocket.height) {
+                gameState.rocket.y = gameState.initialGroundLevel - gameState.rocket.height;
                 if (gameState.isLaunched) {
                     gameState.isCrashed = true;
                     document.getElementById('gameOver').style.display = 'block';
@@ -256,7 +244,22 @@
                 }
             }
 
-            // Update particles
+            // Update camera position to follow rocket
+            if (gameState.isLaunched) {
+                const targetScreenY = canvas.height * 0.6; // Keep rocket at 60% from top
+                gameState.cameraOffset = gameState.rocket.y - targetScreenY;
+
+                // Don't move camera above initial position
+                const initialCameraOffset = gameState.rocket.initialY - targetScreenY;
+                if (gameState.cameraOffset > initialCameraOffset) {
+                    gameState.cameraOffset = initialCameraOffset;
+                }
+            } else {
+                // Camera at initial position when not launched
+                gameState.cameraOffset = gameState.rocket.initialY - (canvas.height * 0.6);
+            }
+
+            // Update particles (in world coordinates)
             gameState.particles = gameState.particles.filter(p => {
                 p.x += p.vx;
                 p.y += p.vy;
@@ -304,17 +307,18 @@
 
             // Draw stars (more visible in space)
             gameState.stars.forEach(star => {
-                const starY = star.y + gameState.cameraOffset;
-                if (starY > -10 && starY < canvas.height + 10) {
+                // Convert world coordinates to screen coordinates
+                const starScreenY = star.y - gameState.cameraOffset;
+                if (starScreenY > -10 && starScreenY < canvas.height + 10) {
                     const starOpacity = Math.min(star.opacity * spaceProgress * 2, 1);
                     ctx.fillStyle = `rgba(255, 255, 255, ${starOpacity})`;
                     ctx.beginPath();
-                    ctx.arc(star.x, starY, star.size, 0, Math.PI * 2);
+                    ctx.arc(star.x, starScreenY, star.size, 0, Math.PI * 2);
                     ctx.fill();
                 }
             });
 
-            // Calculate ground position with camera offset
+            // Calculate ground position in screen coordinates
             const screenGroundLevel = gameState.initialGroundLevel - gameState.cameraOffset;
 
             // Only draw ground if it's visible
@@ -472,7 +476,7 @@
             gameState.fuel = 100;
             gameState.isLaunched = false;
             gameState.isCrashed = false;
-            gameState.cameraOffset = 0;
+            gameState.cameraOffset = (canvas.height - 100) - (canvas.height * 0.6);
             gameState.particles = [];
             document.getElementById('gameOver').style.display = 'none';
         }
