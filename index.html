@@ -113,6 +113,7 @@
             rocket: {
                 x: canvas.width / 2,
                 y: canvas.height - 100,
+                initialY: canvas.height - 100,
                 width: 40,
                 height: 80,
                 velocity: 0,
@@ -128,18 +129,20 @@
             gravity: 0.5,
             spaceStart: canvas.height * 0.3,
             groundLevel: canvas.height - 50,
+            initialGroundLevel: canvas.height - 50,
+            cameraOffset: 0,
             stars: [],
             particles: [],
             buildings: []
         };
 
-        // Initialize stars
-        for (let i = 0; i < 200; i++) {
+        // Initialize stars (distributed across space)
+        for (let i = 0; i < 500; i++) {
             gameState.stars.push({
                 x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height * 0.5,
-                size: Math.random() * 2,
-                opacity: Math.random()
+                y: Math.random() * canvas.height * 5 - canvas.height * 4, // Stars above starting position
+                size: Math.random() * 2.5 + 0.5,
+                opacity: Math.random() * 0.8 + 0.2
             });
         }
 
@@ -231,19 +234,26 @@
             // Clamp velocity
             gameState.rocket.velocity = Math.min(gameState.rocket.velocity, gameState.rocket.maxVelocity);
 
+            // Calculate camera offset to keep rocket near center when flying
+            if (gameState.isLaunched) {
+                const targetY = canvas.height * 0.6; // Keep rocket at 60% from top
+                gameState.cameraOffset = gameState.rocket.y - targetY;
+
+                // Don't let camera go below initial ground level
+                if (gameState.cameraOffset < 0) {
+                    gameState.cameraOffset = 0;
+                }
+            }
+
             // Check if crashed
-            if (gameState.rocket.y >= gameState.groundLevel - gameState.rocket.height) {
-                gameState.rocket.y = gameState.groundLevel - gameState.rocket.height;
+            const absoluteGroundLevel = gameState.initialGroundLevel + gameState.cameraOffset;
+            if (gameState.rocket.y >= absoluteGroundLevel - gameState.rocket.height) {
+                gameState.rocket.y = absoluteGroundLevel - gameState.rocket.height;
                 if (gameState.isLaunched) {
                     gameState.isCrashed = true;
                     document.getElementById('gameOver').style.display = 'block';
                     createCrashParticles();
                 }
-            }
-
-            // Prevent going above screen
-            if (gameState.rocket.y < 0) {
-                gameState.rocket.y = 0;
             }
 
             // Update particles
@@ -266,83 +276,111 @@
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw gradient background
-            const altitude = canvas.height - gameState.rocket.y;
-            const spaceProgress = Math.min(altitude / (canvas.height * 0.7), 1);
+            // Calculate real altitude (distance from initial position)
+            const realAltitude = gameState.rocket.initialY - gameState.rocket.y;
+            const spaceProgress = Math.min(realAltitude / (canvas.height * 2), 1);
 
+            // Draw gradient background that changes based on altitude
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, `rgba(0, 4, 40, ${spaceProgress})`);
-            gradient.addColorStop(0.5, `rgba(0, 78, 146, ${1 - spaceProgress * 0.5})`);
-            gradient.addColorStop(1, '#87ceeb');
+            if (spaceProgress < 0.3) {
+                // Atmosphere
+                gradient.addColorStop(0, '#87ceeb');
+                gradient.addColorStop(0.5, '#4a90e2');
+                gradient.addColorStop(1, '#2d5f8d');
+            } else if (spaceProgress < 0.7) {
+                // Transition to space
+                const t = (spaceProgress - 0.3) / 0.4;
+                gradient.addColorStop(0, `rgba(0, 4, 40, ${t})`);
+                gradient.addColorStop(0.5, `rgba(0, 78, 146, ${1 - t})`);
+                gradient.addColorStop(1, `rgba(45, 95, 141, ${1 - t * 0.5})`);
+            } else {
+                // Deep space
+                gradient.addColorStop(0, '#000428');
+                gradient.addColorStop(0.5, '#001122');
+                gradient.addColorStop(1, '#000000');
+            }
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw stars
+            // Draw stars (more visible in space)
             gameState.stars.forEach(star => {
-                if (gameState.rocket.y < gameState.spaceStart) {
-                    ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+                const starY = star.y + gameState.cameraOffset;
+                if (starY > -10 && starY < canvas.height + 10) {
+                    const starOpacity = Math.min(star.opacity * spaceProgress * 2, 1);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${starOpacity})`;
                     ctx.beginPath();
-                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.arc(star.x, starY, star.size, 0, Math.PI * 2);
                     ctx.fill();
                 }
             });
 
-            // Draw ground
-            ctx.fillStyle = '#2d5016';
-            ctx.fillRect(0, gameState.groundLevel, canvas.width, canvas.height - gameState.groundLevel);
+            // Calculate ground position with camera offset
+            const screenGroundLevel = gameState.initialGroundLevel - gameState.cameraOffset;
 
-            // Draw road
-            ctx.fillStyle = '#444444';
-            ctx.fillRect(0, gameState.groundLevel, canvas.width, 30);
+            // Only draw ground if it's visible
+            if (screenGroundLevel < canvas.height + 100) {
+                // Draw ground
+                ctx.fillStyle = '#2d5016';
+                ctx.fillRect(0, screenGroundLevel, canvas.width, canvas.height - screenGroundLevel);
 
-            // Road lines
-            ctx.strokeStyle = '#ffff00';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([20, 15]);
-            ctx.beginPath();
-            ctx.moveTo(0, gameState.groundLevel + 15);
-            ctx.lineTo(canvas.width, gameState.groundLevel + 15);
-            ctx.stroke();
-            ctx.setLineDash([]);
+                // Draw road
+                ctx.fillStyle = '#444444';
+                ctx.fillRect(0, screenGroundLevel, canvas.width, 30);
 
-            // Draw buildings
-            gameState.buildings.forEach(building => {
-                ctx.fillStyle = building.color;
-                ctx.fillRect(
-                    building.x,
-                    gameState.groundLevel - building.height,
-                    building.width,
-                    building.height
-                );
+                // Road lines
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([20, 15]);
+                ctx.beginPath();
+                ctx.moveTo(0, screenGroundLevel + 15);
+                ctx.lineTo(canvas.width, screenGroundLevel + 15);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-                // Windows
-                ctx.fillStyle = gameState.rocket.y < canvas.height - 200 ? '#ffff00' : '#ffaa00';
-                for (let i = 0; i < building.height / 20; i++) {
-                    for (let j = 0; j < 3; j++) {
+                // Draw buildings
+                gameState.buildings.forEach(building => {
+                    const buildingY = screenGroundLevel - building.height;
+                    if (buildingY < canvas.height + 10) {
+                        ctx.fillStyle = building.color;
                         ctx.fillRect(
-                            building.x + 5 + j * 15,
-                            gameState.groundLevel - building.height + 5 + i * 20,
-                            10,
-                            10
+                            building.x,
+                            buildingY,
+                            building.width,
+                            building.height
                         );
-                    }
-                }
-            });
 
-            // Draw particles
+                        // Windows
+                        ctx.fillStyle = realAltitude < 200 ? '#ffff00' : '#ffaa00';
+                        for (let i = 0; i < building.height / 20; i++) {
+                            for (let j = 0; j < 3; j++) {
+                                ctx.fillRect(
+                                    building.x + 5 + j * 15,
+                                    buildingY + 5 + i * 20,
+                                    10,
+                                    10
+                                );
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Draw particles (with camera offset)
             gameState.particles.forEach(p => {
                 ctx.save();
                 ctx.globalAlpha = p.life;
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                const particleScreenY = p.y - gameState.cameraOffset;
+                ctx.arc(p.x, particleScreenY, p.size, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             });
 
-            // Draw rocket
+            // Draw rocket (with camera offset)
+            const rocketScreenY = gameState.rocket.y - gameState.cameraOffset;
             ctx.save();
-            ctx.translate(gameState.rocket.x, gameState.rocket.y + gameState.rocket.height / 2);
+            ctx.translate(gameState.rocket.x, rocketScreenY + gameState.rocket.height / 2);
             ctx.rotate(gameState.rocket.angle);
             ctx.translate(0, -gameState.rocket.height / 2);
 
@@ -407,9 +445,9 @@
 
             // Update UI
             const speed = Math.abs(Math.round(gameState.rocket.velocity * 10));
-            const altitude = Math.max(0, Math.round(canvas.height - gameState.rocket.y - 100));
+            const displayAltitude = Math.max(0, Math.round(realAltitude));
             document.getElementById('speed').textContent = speed;
-            document.getElementById('altitude').textContent = altitude;
+            document.getElementById('altitude').textContent = displayAltitude;
             document.getElementById('fuelBar').style.width = gameState.fuel + '%';
 
             let status = 'Pronto al decollo';
@@ -428,11 +466,13 @@
         function resetGame() {
             gameState.rocket.x = canvas.width / 2;
             gameState.rocket.y = canvas.height - 100;
+            gameState.rocket.initialY = canvas.height - 100;
             gameState.rocket.velocity = 0;
             gameState.rocket.angle = 0;
             gameState.fuel = 100;
             gameState.isLaunched = false;
             gameState.isCrashed = false;
+            gameState.cameraOffset = 0;
             gameState.particles = [];
             document.getElementById('gameOver').style.display = 'none';
         }
@@ -447,9 +487,10 @@
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            gameState.groundLevel = canvas.height - 50;
+            gameState.initialGroundLevel = canvas.height - 50;
             if (!gameState.isLaunched) {
                 gameState.rocket.y = canvas.height - 100;
+                gameState.rocket.initialY = canvas.height - 100;
             }
         });
 
