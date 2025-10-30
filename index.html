@@ -122,9 +122,9 @@
                 acceleration: 0,
                 angle: 0
             },
-            fuel: 100,
-            maxFuel: 100,
-            fuelConsumption: 1.5,  // Reduced fuel consumption for longer flights
+            fuel: 400,
+            maxFuel: 400,
+            fuelConsumption: 1,  // Low consumption for very long scenic flights
             isLaunched: false,
             isCrashed: false,
             gravity: 0.08,  // Very gentle gravity
@@ -741,7 +741,8 @@
             const displayAltitude = Math.max(0, Math.round(realAltitude));
             document.getElementById('speed').textContent = speed;
             document.getElementById('altitude').textContent = displayAltitude;
-            document.getElementById('fuelBar').style.width = gameState.fuel + '%';
+            const fuelPercentage = (gameState.fuel / gameState.maxFuel) * 100;
+            document.getElementById('fuelBar').style.width = fuelPercentage + '%';
 
             let status = 'Pronto al decollo';
             if (gameState.isCrashed) {
@@ -784,7 +785,7 @@
             gameState.rocket.initialY = canvas.height - 100;
             gameState.rocket.velocity = 0;
             gameState.rocket.angle = 0;
-            gameState.fuel = 100;
+            gameState.fuel = 400;
             gameState.isLaunched = false;
             gameState.isCrashed = false;
             gameState.cameraOffset = (canvas.height - 100) - (canvas.height * 0.6);
