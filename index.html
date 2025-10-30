@@ -737,19 +737,31 @@
             ctx.restore();
 
             // Draw mini-map (vertical overview on the right)
-            const mapWidth = 80;
-            const mapHeight = canvas.height * 0.7;
-            const mapX = canvas.width - mapWidth - 20;
+            const mapWidth = 100;
+            const mapHeight = canvas.height * 0.8;
+            const mapX = canvas.width - mapWidth - 15;
             const mapY = (canvas.height - mapHeight) / 2;
             const maxMapAltitude = 200000; // Maximum altitude we can reach
 
-            // Draw map background (oval shape)
+            // Draw map background (rounded rectangle for better compatibility)
             ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 20, 0.7)';
-            ctx.strokeStyle = 'rgba(100, 150, 255, 0.8)';
-            ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(10, 20, 40, 0.85)';
+            ctx.strokeStyle = 'rgba(100, 200, 255, 0.9)';
+            ctx.lineWidth = 3;
+
+            // Draw rounded rectangle
+            const radius = 20;
             ctx.beginPath();
-            ctx.ellipse(mapX + mapWidth / 2, mapY + mapHeight / 2, mapWidth / 2, mapHeight / 2, 0, 0, Math.PI * 2);
+            ctx.moveTo(mapX + radius, mapY);
+            ctx.lineTo(mapX + mapWidth - radius, mapY);
+            ctx.quadraticCurveTo(mapX + mapWidth, mapY, mapX + mapWidth, mapY + radius);
+            ctx.lineTo(mapX + mapWidth, mapY + mapHeight - radius);
+            ctx.quadraticCurveTo(mapX + mapWidth, mapY + mapHeight, mapX + mapWidth - radius, mapY + mapHeight);
+            ctx.lineTo(mapX + radius, mapY + mapHeight);
+            ctx.quadraticCurveTo(mapX, mapY + mapHeight, mapX, mapY + mapHeight - radius);
+            ctx.lineTo(mapX, mapY + radius);
+            ctx.quadraticCurveTo(mapX, mapY, mapX + radius, mapY);
+            ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
@@ -828,29 +840,32 @@
 
             // Draw rocket position on map (highlighted)
             const rocketMapY = altitudeToMapY(gameState.rocket.y);
-            if (rocketMapY >= mapY && rocketMapY <= mapY + mapHeight) {
+            if (rocketMapY >= mapY - 20 && rocketMapY <= mapY + mapHeight + 20) {
                 // Pulsing effect
                 const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
 
-                // Outer glow
-                ctx.fillStyle = `rgba(255, 255, 0, ${pulse * 0.3})`;
+                // Outer glow (larger and brighter)
+                ctx.fillStyle = `rgba(255, 255, 0, ${pulse * 0.5})`;
                 ctx.beginPath();
-                ctx.arc(mapX + mapWidth / 2, rocketMapY, 8, 0, Math.PI * 2);
+                ctx.arc(mapX + mapWidth / 2, rocketMapY, 12, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Rocket marker
-                ctx.fillStyle = `rgba(255, 255, 0, ${pulse})`;
+                // Rocket marker (bigger)
+                ctx.fillStyle = `rgba(255, 100, 0, ${pulse})`;
+                ctx.strokeStyle = 'rgba(255, 255, 0, 1)';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(mapX + mapWidth / 2, rocketMapY - 5);
-                ctx.lineTo(mapX + mapWidth / 2 - 3, rocketMapY + 3);
-                ctx.lineTo(mapX + mapWidth / 2 + 3, rocketMapY + 3);
+                ctx.moveTo(mapX + mapWidth / 2, rocketMapY - 8);
+                ctx.lineTo(mapX + mapWidth / 2 - 5, rocketMapY + 5);
+                ctx.lineTo(mapX + mapWidth / 2 + 5, rocketMapY + 5);
                 ctx.closePath();
                 ctx.fill();
+                ctx.stroke();
 
                 // Horizontal line to show exact position
-                ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([3, 3]);
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 3]);
                 ctx.beginPath();
                 ctx.moveTo(mapX + 5, rocketMapY);
                 ctx.lineTo(mapX + mapWidth - 5, rocketMapY);
