@@ -736,6 +736,130 @@
 
             ctx.restore();
 
+            // Draw mini-map (vertical overview on the right)
+            const mapWidth = 80;
+            const mapHeight = canvas.height * 0.7;
+            const mapX = canvas.width - mapWidth - 20;
+            const mapY = (canvas.height - mapHeight) / 2;
+            const maxMapAltitude = 200000; // Maximum altitude we can reach
+
+            // Draw map background (oval shape)
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 20, 0.7)';
+            ctx.strokeStyle = 'rgba(100, 150, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(mapX + mapWidth / 2, mapY + mapHeight / 2, mapWidth / 2, mapHeight / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw altitude markers
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'left';
+            const markers = [0, 50000, 100000, 150000, 200000];
+            markers.forEach(alt => {
+                const markerY = mapY + mapHeight - (alt / maxMapAltitude) * mapHeight;
+                if (markerY >= mapY && markerY <= mapY + mapHeight) {
+                    ctx.fillText(alt / 1000 + 'k', mapX - 30, markerY + 3);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.fillRect(mapX + 5, markerY, mapWidth - 10, 1);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                }
+            });
+
+            // Helper function to convert altitude to map Y position
+            function altitudeToMapY(altitude) {
+                const altFromGround = gameState.rocket.initialY - altitude;
+                const ratio = altFromGround / maxMapAltitude;
+                return mapY + mapHeight - (ratio * mapHeight);
+            }
+
+            // Draw Earth at bottom
+            const earthY = altitudeToMapY(gameState.rocket.initialY);
+            if (earthY >= mapY && earthY <= mapY + mapHeight) {
+                ctx.fillStyle = '#4a90e2';
+                ctx.beginPath();
+                ctx.arc(mapX + mapWidth / 2, earthY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#2d5016';
+                ctx.beginPath();
+                ctx.arc(mapX + mapWidth / 2, earthY, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw planets on map
+            gameState.planets.forEach(planet => {
+                const planetMapY = altitudeToMapY(planet.y);
+                if (planetMapY >= mapY - 5 && planetMapY <= mapY + mapHeight + 5) {
+                    // Check if passed
+                    const isPassed = gameState.rocket.y < planet.y;
+
+                    ctx.fillStyle = isPassed ? 'rgba(100, 100, 100, 0.5)' : planet.color;
+                    ctx.beginPath();
+                    const size = planet.isStation ? 3 : Math.min(planet.size / 15, 6);
+                    ctx.arc(mapX + mapWidth / 2, planetMapY, size, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Add ring for Saturn
+                    if (planet.hasRings && !isPassed) {
+                        ctx.strokeStyle = planet.color;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.ellipse(mapX + mapWidth / 2, planetMapY, size * 1.5, size * 0.5, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+            });
+
+            // Draw galaxies on map
+            if (realAltitude > 80000) {
+                gameState.galaxies.forEach(galaxy => {
+                    const galaxyMapY = altitudeToMapY(galaxy.y);
+                    if (galaxyMapY >= mapY - 5 && galaxyMapY <= mapY + mapHeight + 5) {
+                        const isPassed = gameState.rocket.y < galaxy.y;
+                        ctx.fillStyle = isPassed ? 'rgba(100, 100, 100, 0.3)' : galaxy.color.replace(')', ', 0.6)').replace('rgb', 'rgba');
+                        ctx.beginPath();
+                        ctx.arc(mapX + mapWidth / 2, galaxyMapY, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+            }
+
+            // Draw rocket position on map (highlighted)
+            const rocketMapY = altitudeToMapY(gameState.rocket.y);
+            if (rocketMapY >= mapY && rocketMapY <= mapY + mapHeight) {
+                // Pulsing effect
+                const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+
+                // Outer glow
+                ctx.fillStyle = `rgba(255, 255, 0, ${pulse * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(mapX + mapWidth / 2, rocketMapY, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Rocket marker
+                ctx.fillStyle = `rgba(255, 255, 0, ${pulse})`;
+                ctx.beginPath();
+                ctx.moveTo(mapX + mapWidth / 2, rocketMapY - 5);
+                ctx.lineTo(mapX + mapWidth / 2 - 3, rocketMapY + 3);
+                ctx.lineTo(mapX + mapWidth / 2 + 3, rocketMapY + 3);
+                ctx.closePath();
+                ctx.fill();
+
+                // Horizontal line to show exact position
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(mapX + 5, rocketMapY);
+                ctx.lineTo(mapX + mapWidth - 5, rocketMapY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            ctx.restore();
+
             // Update UI
             const speed = Math.abs(Math.round(gameState.rocket.velocity * 10));
             const displayAltitude = Math.max(0, Math.round(realAltitude));
