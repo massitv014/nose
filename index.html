@@ -118,16 +118,16 @@
                 width: 40,
                 height: 80,
                 velocity: 0,
-                maxVelocity: 250,  // Much slower max speed for scenic flight
+                maxVelocity: 450,  // Higher max speed to reach distant objects
                 acceleration: 0,
                 angle: 0
             },
-            fuel: 400,
-            maxFuel: 400,
-            fuelConsumption: 1,  // Low consumption for very long scenic flights
+            fuel: 500,
+            maxFuel: 500,
+            fuelConsumption: 0.8,  // Very low consumption for extended exploration
             isLaunched: false,
             isCrashed: false,
-            gravity: 0.08,  // Very gentle gravity
+            gravity: 0.05,  // Minimal gravity for deep space travel
             spaceStart: canvas.height * 0.3,
             groundLevel: canvas.height - 50,
             initialGroundLevel: canvas.height - 50,
@@ -274,8 +274,8 @@
                 if (!gameState.isCrashed && gameState.fuel > 0) {
                     // Start launch or boost
                     gameState.isLaunched = true;
-                    // Very gentle boost for scenic viewing
-                    gameState.rocket.velocity -= gameState.rocket.velocity * 0.1 + 5;
+                    // Moderate boost - slow enough to enjoy, fast enough to reach far objects
+                    gameState.rocket.velocity -= gameState.rocket.velocity * 0.12 + 8;
                     // Consume fuel
                     gameState.fuel = Math.max(0, gameState.fuel - gameState.fuelConsumption);
 
@@ -785,7 +785,7 @@
             gameState.rocket.initialY = canvas.height - 100;
             gameState.rocket.velocity = 0;
             gameState.rocket.angle = 0;
-            gameState.fuel = 400;
+            gameState.fuel = 500;
             gameState.isLaunched = false;
             gameState.isCrashed = false;
             gameState.cameraOffset = (canvas.height - 100) - (canvas.height * 0.6);
